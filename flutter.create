@@ -1,0 +1,443 @@
+import 'package:flutter/material.dart';
+
+// ==========================================
+// 1. DATA MODEL
+// ==========================================
+class TaskItem {
+  final String title;
+  final String category;
+  final String deadline;
+  final String priority;
+  bool isCompleted;
+
+  TaskItem({
+    required this.title,
+    required this.category,
+    required this.deadline,
+    required this.priority,
+    this.isCompleted = false,
+  });
+}
+
+// ==========================================
+// 2. MAIN ENTRY & THEME (Section A & B)
+// ==========================================
+void main() {
+  runApp(const AcademicAssistantApp());
+}
+
+class AcademicAssistantApp extends StatelessWidget {
+  const AcademicAssistantApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Academic Management Assistant',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: const Color(0xFFF7F7FA),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.purple,
+          foregroundColor: Colors.white,
+          centerTitle: true,
+        ),
+      ),
+      home: const DashboardScreen(),
+    );
+  }
+}
+
+// ==========================================
+// 3. DASHBOARD SCREEN (Section B, D, & E)
+// ==========================================
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final List<TaskItem> _tasks = [
+    TaskItem(title: 'Math Homework', category: 'Academic', deadline: 'Today', priority: 'High'),
+    TaskItem(title: 'Science Competition', category: 'Extra', deadline: 'Week', priority: 'Medium'),
+    TaskItem(title: 'History Exam', category: 'Exam', deadline: 'Upcoming', priority: 'High'),
+  ];
+
+  int get completedCount => _tasks.where((t) => t.isCompleted).length;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Academic Assistant'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.insights),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SummaryScreen(
+                    totalTasks: _tasks.length,
+                    completedTasks: completedCount,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'What do you want to do?',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade50),
+              icon: const Icon(Icons.calendar_month, color: Colors.purple),
+              label: const Text('View Schedule (Calendar)', style: TextStyle(color: Colors.purple)),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ScheduleScreen(tasks: _tasks),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade50),
+              icon: const Icon(Icons.add_task, color: Colors.purple),
+              label: const Text('Add a Task', style: TextStyle(color: Colors.purple)),
+              onPressed: () async {
+                final newTask = await Navigator.push<TaskItem>(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddTaskScreen()),
+                );
+                // Section D: Logic decision using if/else
+                if (newTask != null) {
+                  setState(() => _tasks.add(newTask));
+                }
+              },
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Task Overview (${_tasks.length})',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            // Section E: ListView.builder
+            Expanded(
+              child: ListView.builder(
+                itemCount: _tasks.length,
+                itemBuilder: (context, index) {
+                  final task = _tasks[index];
+                  return Card(
+                    child: ListTile(
+                      leading: Icon(
+                        task.isCompleted ? Icons.check_circle : Icons.pending,
+                        color: task.isCompleted ? Colors.green : Colors.purple,
+                      ),
+                      title: Text(
+                        task.title,
+                        style: TextStyle(
+                          decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      subtitle: Text('${task.category} • ${task.deadline}'),
+                      trailing: Chip(label: Text(task.priority)),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 4. VIEW SCHEDULE SCREEN (Section D)
+// ==========================================
+class ScheduleScreen extends StatefulWidget {
+  final List<TaskItem> tasks;
+  const ScheduleScreen({super.key, required this.tasks});
+
+  @override
+  State<ScheduleScreen> createState() => _ScheduleScreenState();
+}
+
+class _ScheduleScreenState extends State<ScheduleScreen> {
+  String _activeFilter = 'Today';
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredTasks = widget.tasks.where((t) {
+      if (_activeFilter == 'Today') return t.deadline.toLowerCase() == 'today';
+      if (_activeFilter == 'Week') return t.deadline.toLowerCase() == 'week';
+      return true;
+    }).toList();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('View Schedule')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: ['Today', 'Week', 'Upcoming'].map((filter) {
+                return ChoiceChip(
+                  label: Text(filter),
+                  selected: _activeFilter == filter,
+                  onSelected: (selected) {
+                    if (selected) setState(() => _activeFilter = filter);
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredTasks.length,
+                itemBuilder: (context, index) {
+                  final task = filteredTasks[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(task.title),
+                      subtitle: Text('${task.category} • Priority: ${task.priority}'),
+                      trailing: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TimerScreen(task: task),
+                            ),
+                          );
+                        },
+                        child: const Text('Start Timer'),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 5. ADD TASK FORM SCREEN (Section C)
+// ==========================================
+class AddTaskScreen extends StatefulWidget {
+  const AddTaskScreen({super.key});
+
+  @override
+  State<AddTaskScreen> createState() => _AddTaskScreenState();
+}
+
+class _AddTaskScreenState extends State<AddTaskScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _deadlineController = TextEditingController();
+  final TextEditingController _categoryController = TextEditingController();
+  String _selectedPriority = 'Medium';
+
+  @override
+  void dispose() {
+    // Properly disposed controllers (Section C)
+    _nameController.dispose();
+    _deadlineController.dispose();
+    _categoryController.dispose();
+    super.dispose();
+  }
+
+  void _saveTask() {
+    final name = _nameController.text.trim();
+    final deadline = _deadlineController.text.trim();
+
+    // Empty input check with SnackBar (Section C)
+    if (name.isEmpty || deadline.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a Task Name and Deadline!'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } else {
+      final newTask = TaskItem(
+        title: name,
+        category: _categoryController.text.trim().isEmpty ? 'General' : _categoryController.text.trim(),
+        deadline: deadline,
+        priority: _selectedPriority,
+      );
+      Navigator.pop(context, newTask);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Add Task')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: _deadlineController, decoration: const InputDecoration(labelText: 'Deadline (Today/Week/Upcoming)', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: _categoryController, decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedPriority,
+              decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
+              items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+              onChanged: (val) => setState(() => _selectedPriority = val!),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: _saveTask, child: const Text('Save Task')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 6. TIMER & TASK EXECUTION SCREEN
+// ==========================================
+class TimerScreen extends StatefulWidget {
+  final TaskItem task;
+  const TimerScreen({super.key, required this.task});
+
+  @override
+  State<TimerScreen> createState() => _TimerScreenState();
+}
+
+class _TimerScreenState extends State<TimerScreen> {
+  bool _isRunning = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('In Progress: ${widget.task.title}')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _isRunning ? Icons.timer : Icons.pause_circle_filled,
+                size: 80,
+                color: Colors.purple,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _isRunning ? 'Task In Progress...' : 'Task Paused',
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => setState(() => _isRunning = !_isRunning),
+                    child: Text(_isRunning ? 'Pause' : 'Continue'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+              const Divider(),
+              const SizedBox(height: 10),
+              const Text('Task Finished?', style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                icon: const Icon(Icons.check),
+                label: const Text('Mark Complete'),
+                onPressed: () {
+                  setState(() => widget.task.isCompleted = true);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SummaryScreen(totalTasks: 1, completedTasks: 1),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 7. PROGRESS / DAILY SUMMARY SCREEN
+// ==========================================
+class SummaryScreen extends StatelessWidget {
+  final int totalTasks;
+  final int completedTasks;
+
+  const SummaryScreen({
+    super.key,
+    required this.totalTasks,
+    required this.completedTasks,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double percentage = totalTasks == 0 ? 0 : (completedTasks / totalTasks) * 100;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Progress / Daily Summary')),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              color: Colors.purple.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    const Text('Daily Completion Rate', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Text('${percentage.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.purple)),
+                    const SizedBox(height: 8),
+                    Text('$completedTasks of $totalTasks Tasks Completed'),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+              child: const Text('Next Task / Go to Dashboard'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
